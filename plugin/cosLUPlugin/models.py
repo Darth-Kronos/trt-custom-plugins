@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
+import numpy as np
 
+custom_layer = torch.utils.cpp_extension.load('path/to/built/extension', 'custom_layer')
+
+# Custom activation function
 class CosLU(nn.Module):
     def __init__(self):
         super(CosLU, self).__init__()
@@ -13,8 +17,12 @@ class CosLU(nn.Module):
         nn.init.constant_(self.b, 1.0)
 
     def forward(self, x):
+        if torch.jit.is_tracing():
+            return custom_layer.custom_layer_forward(x, self.a, self.b)
+        
         return F.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
 
+# ResNet50 with CosLU activation function
 class CustomResNet(nn.Module):
     def __init__(self, custom_activation):
         super(CustomResNet, self).__init__()
@@ -35,3 +43,13 @@ class CustomResNet(nn.Module):
 
     def forward(self, x):
         return self.resnet(x)
+    
+
+
+def forward(self, input):
+    # During TorchScript export, use the custom C++ function
+    if torch.jit.is_scripting():
+        return custom_layer.custom_layer_forward(input, self.weight, self.bias)
+    # During regular PyTorch execution, use your original forward logic
+    else:
+        return F.linear(input, self.weight, self.bias)
