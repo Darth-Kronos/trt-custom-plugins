@@ -31,3 +31,4 @@
 *.out
 *.app
 plugin/cosLUPlugin/__pycache__
+plugin/cosLUPlugin/new/build/*

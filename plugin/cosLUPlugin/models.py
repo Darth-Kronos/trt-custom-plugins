@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
 import numpy as np
 
-custom_layer = torch.utils.cpp_extension.load('path/to/built/extension', 'custom_layer')
-
+# custom_layer = torch.utils.cpp_extension.load('path/to/built/extension', 'custom_layer')
+torch.ops.load_library("new/build/libcosLU.so")
 # Custom activation function
 class CosLU(nn.Module):
     def __init__(self):
@@ -18,7 +18,7 @@ class CosLU(nn.Module):
 
     def forward(self, x):
         if torch.jit.is_tracing():
-            return custom_layer.custom_layer_forward(x, self.a, self.b)
+            return torch.ops.my_ops.cosLU(x, self.a, self.b)
         
         return F.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
 
