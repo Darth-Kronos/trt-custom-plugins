@@ -5,7 +5,8 @@ from torchvision.models import resnet50, ResNet50_Weights
 import numpy as np
 
 # custom_layer = torch.utils.cpp_extension.load('path/to/built/extension', 'custom_layer')
-torch.ops.load_library("new/build/libcosLU.so")
+# torch.ops.load_library("new/build/libcosLU.so")
+
 # Custom activation function
 class CosLU(nn.Module):
     def __init__(self):
@@ -45,11 +46,3 @@ class CustomResNet(nn.Module):
         return self.resnet(x)
     
 
-
-def forward(self, input):
-    # During TorchScript export, use the custom C++ function
-    if torch.jit.is_scripting():
-        return custom_layer.custom_layer_forward(input, self.weight, self.bias)
-    # During regular PyTorch execution, use your original forward logic
-    else:
-        return F.linear(input, self.weight, self.bias)

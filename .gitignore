@@ -12,7 +12,6 @@
 *.pch
 
 # Compiled Dynamic libraries
-*.so
 *.dylib
 *.dll
 
@@ -30,5 +29,10 @@
 *.exe
 *.out
 *.app
+
+#vscode
+.vscode/*
+
+#pycache
 plugin/cosLUPlugin/__pycache__
 plugin/cosLUPlugin/new/build/*
