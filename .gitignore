@@ -35,4 +35,4 @@
 
 #pycache
 plugin/cosLUPlugin/__pycache__
-plugin/cosLUPlugin/new/build/*
+plugin/cosLUPlugin/tsPlugin/build/*

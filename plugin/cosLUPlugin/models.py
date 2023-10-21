@@ -21,7 +21,7 @@ class CosLU(nn.Module):
         if torch.jit.is_tracing():
             return torch.ops.my_ops.cosLU(x, self.a, self.b)
         
-        return F.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
+        return torch.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
 
 # ResNet50 with CosLU activation function
 class CustomResNet(nn.Module):
