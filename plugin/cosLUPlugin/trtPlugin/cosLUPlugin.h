@@ -19,11 +19,12 @@ class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 public:
     CosLUPlugin(const std::string name, nvinfer1::Weights const& a, nvinfer1::Weights const& b);
 
+    //deserialize constructor
     CosLUPlugin(const std::string name, void const* data, size_t length);
 
     // It doesn't make sense to make CosLUPlugin without arguments, so we delete
     // default constructor.
-    GeluPlugin() = delete;
+    CosLUPlugin() = delete;
 
     // IPluginV2DynamicExt Methods
     nvinfer1::IPluginV2DynamicExt* clone() const noexcept override;

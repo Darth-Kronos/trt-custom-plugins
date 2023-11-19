@@ -24,7 +24,7 @@ std::vector<PluginField> CosLUPluginCreator::mPluginAttributes;
 
 REGISTER_TENSORRT_PLUGIN(CosLUPluginCreator);
 /////////////// CosLUPluginCreator
-CosLUPlugin:: CosLUPlugin(const std::string name, const DataType type, Weights const& a, Weights const& b) : mLayerName(name), mType(type), mLd(a.count) {
+CosLUPlugin::CosLUPlugin(const std::string name, const DataType type, Weights const& a, Weights const& b) : mLayerName(name), mType(type), mLd(a.count) {
     
     void* cudaMemA{nullptr};
     void* cudaMemB{nullptr};
@@ -41,15 +41,98 @@ CosLUPlugin:: CosLUPlugin(const std::string name, const DataType type, Weights c
 CosLUPlugin::CosLUPlugin(const std::string name, void const* data, size_t length) : mLayerName(name) {
     gLogVerbose << "CosLUPluginDynamic deserialize\n";
 
+    // Deserialize in the same order as serialization
+
+    // memcopy(_dst, _src, size)
+    // deserialize: buffer -> fields
+    
+    // deserialize(buffer, buffer_size, value)
     deserialize_value(&data, &length, &mType);
     deserialize_value(&data, &length, &mLd);
     
     PLUGIN_VALIDATE(mLd > 0);
     char const* d = static_cast<char const*>(data);
-    // make_cuda_shared(mBiasDev, deserToDev<char>(d, mLd * getElementSize(mType)));
+    make_cuda_shared(mAdev, deserToDev<char>(d, mLd * getElementSize(mType)));
+    make_cuda_shared(mBdev, deserToDev<char>(d, mLd * getElementSize(mType)));
 
 }
 
+// IPluginV2DynamicExt Methods
+nvinfer1::IPluginV2DynamicExt* CosLUPlugin::clone() const noexcept
+{
+    try
+    {
+        gLogVerbose << "CosLUPlugin clone\n";
+        auto* plugin = new CosLUPlugin(*this);
+        plugin->setPluginNamespace(mNamespace.c_str());
+        return plugin;
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+    return nullptr;
+}
+
+nvinfer1::DimsExprs CosLUPlugin::getOutputDimensions(int32_t outputIndex, nvinfer1::DimsExprs const* inputs,
+    int32_t nbInputs, nvinfer1::IExprBuilder& exprBuilder) noexcept
+{
+    try
+    {
+        PLUGIN_VALIDATE(inputs != nullptr);
+        PLUGIN_VALIDATE(nbInputs == 1);
+        PLUGIN_VALIDATE(outputIndex == 0);
+        return inputs[0];
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+    return DimsExprs{};
+}
+
+void CosLUPlugin::serialize(void* buffer) const noexcept {
+    try {
+        // memcopy(_dst, _src, size)
+        // serialize: fields -> buffer
+        
+        // serialize(buffer, value)
+        serialize_value(&buffer, mType);
+        serialize_value(&buffer, mLd);
+
+        char* d = static_cast<char*>(buffer);
+        serFromDev(d, static_cast<char*>(mAdev.get()), mLd * getElementSize(mType));
+        serFromDev(d, static_cast<char*>(mBdev.get()), mLd * getElementSize(mType));
+        
+    }
+    catch (std::exception const& e) {
+        caughtError(e);
+    }
+}
+
+void CosLUPlugin::destroy() noexcept {
+    gLogVerbose << "CosLUPlugin destroy\n";
+    // This gets called when the network containing plugin is destroyed
+    mAdev.reset();
+    mBdev.reset();
+    delete this;
+}
+
+void CosLUPlugin::setPluginNamespace(char const* libNamespace) noexcept {
+    try {
+        PLUGIN_VALIDATE(libNamespace != nullptr);
+        mNamespace = libNamespace;
+    }
+    catch (std::exception const& e) {
+        caughtError(e);
+    }
+}
+
+char const* CosLUPlugin::getPluginNamespace() const noexcept {
+    return mNamespace.c_str();
+}
+
+///////////////
 
 CosLUPluginCreator::CosLUPluginCreator() {
     // name, data, datatype, length
