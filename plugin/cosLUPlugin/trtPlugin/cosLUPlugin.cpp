@@ -132,6 +132,47 @@ char const* CosLUPlugin::getPluginNamespace() const noexcept {
     return mNamespace.c_str();
 }
 
+template <typename TDataType>
+int32_t CosLUPlugin::enqueueTyped(
+    void const* input_, void* output_, int32_t const inputVolume, cudaStream_t stream) noexcept
+{
+    TDataType const* input = static_cast<TDataType const*>(input_);
+    TDataType* output = static_cast<TDataType*>(output_);
+    // int32_t const cols = inputVolume / mLd;
+    // int32_t const rows = mLd;
+    TDataType const* a = static_cast<TDataType*>(mADev.get());
+    TDataType const* b = static_cast<TDataType*>(mBDev.get());
+    return computeCosLU(stream, inputVolume, input, output, a, b);
+}
+
+int32_t CosLUPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
+    nvinfer1::PluginTensorDesc const* outputDesc, void const* const* inputs, void* const* outputs, void* workspace,
+    cudaStream_t stream) noexcept
+{
+    try
+    {
+        PLUGIN_VALIDATE(inputDesc != nullptr);
+        PLUGIN_VALIDATE(inputs != nullptr);
+        PLUGIN_VALIDATE(outputs != nullptr);
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+        return STATUS_FAILURE;
+    }
+
+    int32_t const inputVolume = volume(inputDesc[0].dims);
+
+    // Our plugin outputs only one tensor.
+    // Launch CUDA kernel wrapper and save its return value.
+    switch (mType)
+    {
+    case DataType::kFLOAT: return enqueueTyped<float>(inputs[0], outputs[0], inputVolume, stream);
+    case DataType::kHALF: return enqueueTyped<half>(inputs[0], outputs[0], inputVolume, stream);
+    default: return STATUS_FAILURE;
+    }
+}
+
 ///////////////
 
 CosLUPluginCreator::CosLUPluginCreator() {
@@ -142,7 +183,7 @@ CosLUPluginCreator::CosLUPluginCreator() {
 
     // Fill PluginFieldCollection with PluginField arguments metadata
     mFC.nbFields = mPluginAttributes.size(); // 3
-    mFC.fields = mPluginAttributes.data(); // pointer to the above fields (a & b)
+    mFC.fields = mPluginAttributes.data(); // pointer to the above fields (type_id,a,b)
 }
 ///////////////
 
@@ -164,9 +205,10 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
         PLUGIN_VALIDATE(fc != nullptr);
 
         // Weights W{DataType::kFLOAT, vector<DataType::kFLOAT>, 0};
-        Weights W{DataType::kFLOAT, nullptr, 0};
+        Weights W_a{DataType::kFLOAT, nullptr, 0};
+        Weights W_b{DataType::kFLOAT, nullptr, 0};
         // Weights b{DataType::kFLOAT, nullptr, 0};
-        std::vector<DataType::kFLOAT> _values;
+        // std::vector<DataType::kFLOAT> _values;
         int32_t typeId = -1;
         plugin::validateRequiredAttributesExist({"type_id"}, fc);
         plugin::validateRequiredAttributesExist({"a"}, fc);
@@ -179,14 +221,16 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
                 typeId = *static_cast<int32_t const*>(fc->fields[i].data);
             }
             if (fieldName.compare("a") == 0) {
-                values.push_back(fc->fields[i].data);
-                W.count += fc->fields[i].length;
-                W.type = fieldTypeToDataType(fc->fields[i].type);
+                // values.push_back(fc->fields[i].data);
+                W_a.values = fc->fields[i].data;
+                W_a.count += fc->fields[i].length;
+                W_a.type = fieldTypeToDataType(fc->fields[i].type);
             }
             if (fieldName.compare("b") == 0) {
-                values.push_back(fc->fields[i].data);
-                W.count += fc->fields[i].length;
-                W.type = fieldTypeToDataType(fc->fields[i].type);
+                // values.push_back(fc->fields[i].data);
+                W_b.values = fc->fields[i].data;
+                W_b.count += fc->fields[i].length;
+                W_b.type = fieldTypeToDataType(fc->fields[i].type);
             }
         }
         if (typeId < 0 || typeId > 3)
@@ -194,8 +238,8 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
             gLogError << "CosLUPluginCreator: invalid typeId " << typeId << std::endl;
             return nullptr;
         }
-        W.values = _values;
-        return new CosLUPlugin(name, type_id, W);
+        // W.values = _values;
+        return new CosLUPlugin(name, typeId, W_a, W_b);
     }
     catch (std::exception const& e)
     {
@@ -203,4 +247,39 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
     }
     return nullptr;
 }
+
+IPluginV2* CosLUPluginCreator::deserializePlugin(
+    char const* name, void const* serialData, size_t serialLength) noexcept
+{
+    // This object will be deleted when the network is destroyed, which will
+    // call GeluPluginDynamic::destroy()
+    try
+    {
+        return new CosLUPlugin(name, serialData, serialLength);
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+    return nullptr;
+}
+
+void CosLUPluginCreator::setPluginNamespace(char const* libNamespace) noexcept
+{
+    try
+    {
+        PLUGIN_VALIDATE(libNamespace != nullptr);
+        mNamespace = libNamespace;
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+}
+
+char const* CosLUPluginCreator::getPluginNamespace() const noexcept
+{
+    return mNamespace.c_str();
+}
+
 // #endif // CUDA_VERSION >= 10010

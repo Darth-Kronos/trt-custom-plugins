@@ -17,7 +17,7 @@ namespace plugin
 class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 {
 public:
-    CosLUPlugin(const std::string name, nvinfer1::Weights const& a, nvinfer1::Weights const& b);
+    CosLUPlugin(const std::string name, const nvinfer1::DataType type, nvinfer1::Weights const& a, nvinfer1::Weights const& b);
 
     //deserialize constructor
     CosLUPlugin(const std::string name, void const* data, size_t length);
