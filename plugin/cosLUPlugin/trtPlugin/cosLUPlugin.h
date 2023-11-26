@@ -1,5 +1,5 @@
 #include<cuda.h>
-// #if CUDA_VERSION >= 10010
+#if CUDA_VERSION >= 10010
 
 #ifndef TRT_COSLU_PLUGIN_H
 #define TRT_COSLU_PLUGIN_H
@@ -106,5 +106,5 @@ private:
 } // namespace nvinfer1
 
 #endif // TRT_COSLU_PLUGIN_H
-// #endif //cuda
+#endif //cuda
 

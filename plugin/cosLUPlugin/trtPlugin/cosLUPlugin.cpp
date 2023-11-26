@@ -173,6 +173,111 @@ int32_t CosLUPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
     }
 }
 
+bool CosLUPlugin::supportsFormatCombination(
+    int32_t pos, nvinfer1::PluginTensorDesc const* inOut, int32_t nbInputs, int32_t nbOutputs) noexcept
+{
+    try
+    {
+        PLUGIN_VALIDATE(inOut != nullptr);
+        PLUGIN_VALIDATE(nbInputs == 1);
+        PLUGIN_VALIDATE(nbOutputs == 1);
+        PLUGIN_VALIDATE(pos >= 0);
+        PLUGIN_VALIDATE(pos < nbInputs + nbOutputs);
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+        return false;
+    }
+
+    PluginTensorDesc const& input = inOut[0];
+    if (pos == 0)
+    {
+        return (input.type == mType) && (input.format == TensorFormat::kLINEAR);
+    }
+    if (pos == 1)
+    {
+        PluginTensorDesc const& output = inOut[1];
+        return (input.type == output.type) && (output.format == TensorFormat::kLINEAR);
+    }
+    return false;
+}
+
+void CosLUPlugin::configurePlugin(nvinfer1::DynamicPluginTensorDesc const* in, int32_t nbInputs,
+    nvinfer1::DynamicPluginTensorDesc const* out, int32_t nbOutputs) noexcept
+{
+    gLogVerbose << "CosLUPlugin configurePlugin\n";
+
+    try
+    {
+        PLUGIN_VALIDATE(in != nullptr);
+        PLUGIN_VALIDATE(nbInputs == 1);
+        PLUGIN_VALIDATE(mType == in[0].desc.type);
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+}
+
+size_t CosLUPlugin::getWorkspaceSize(nvinfer1::PluginTensorDesc const* inputs, int32_t nbInputs,
+    nvinfer1::PluginTensorDesc const* outputs, int32_t nbOutputs) const noexcept
+{
+    return 0;
+}
+
+// IPluginV2Ext Methods
+nvinfer1::DataType CosLUPlugin::getOutputDataType(
+    int32_t index, nvinfer1::DataType const* inputTypes, int32_t nbInputs) const noexcept
+{
+    try
+    {
+        PLUGIN_VALIDATE(index == 0);
+        PLUGIN_VALIDATE(inputTypes != nullptr);
+        PLUGIN_VALIDATE(inputTypes[0] == DataType::kFLOAT || inputTypes[0] == DataType::kHALF);
+        return inputTypes[0];
+    }
+    catch (std::exception const& e)
+    {
+        caughtError(e);
+    }
+    return DataType{};
+}
+
+// IPluginV2 Methods
+
+char const* CosLUPlugin::getPluginType() const noexcept
+{
+    return kCOSLU_PLUGIN_NAME;
+}
+
+char const* CosLUPlugin::getPluginVersion() const noexcept
+{
+    return kCOSLU_PLUGIN_VERSION;
+}
+
+int32_t CosLUPlugin::getNbOutputs() const noexcept
+{
+    return 1;
+}
+
+int32_t CosLUPlugin::initialize() noexcept
+{
+    gLogVerbose << "CosLUPlugin initalize\n";
+    return 0;
+}
+
+void CosLUPlugin::terminate() noexcept
+{
+    gLogVerbose << "CosLUPlugin terminate\n";
+}
+
+size_t CosLUPlugin::getSerializationSize() const noexcept
+{
+    // const size_t wordSize = getElementSize(mType);
+    // const size_t biasSize = mHasBias ? mLd * wordSize : 0;
+    return sizeof(mType) + 2 * sizeof(mLd);
+}
 ///////////////
 
 CosLUPluginCreator::CosLUPluginCreator() {
@@ -252,7 +357,7 @@ IPluginV2* CosLUPluginCreator::deserializePlugin(
     char const* name, void const* serialData, size_t serialLength) noexcept
 {
     // This object will be deleted when the network is destroyed, which will
-    // call GeluPluginDynamic::destroy()
+    // call CosLUPlugin::destroy()
     try
     {
         return new CosLUPlugin(name, serialData, serialLength);

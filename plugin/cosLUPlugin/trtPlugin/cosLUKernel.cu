@@ -18,8 +18,7 @@ namespace nvinfer1
 {
 namespace plugin
 {
-namespace bert
-{
+
 
 template <typename T, unsigned TPB>
 __global__ void cosLUKernel(int n, const T* input, T* output, const T* a, const T* b)
@@ -29,13 +28,13 @@ __global__ void cosLUKernel(int n, const T* input, T* output, const T* a, const 
     if (idx < n)
     {
         const T in = input[idx];
-        output[idx] = torch::sigmoid(in) * (in + (a * torch::cos(b*in)));;
+        output[idx] = torch::sigmoid(in) * (in + (a * torch::cos(b*in)));
     }
 }
 
 int computeCosLU(cudaStream_t stream, int n, const float* input, float* output, const float* a, const float* b)
 {
-    constexpr int blockSize = 256;
+    constexpr int blockSize = 256; // number of threads, n = size of input
     const int gridSize = (n + blockSize - 1) / blockSize;
     cosLUKernel<float, blockSize><<<gridSize, blockSize, 0, stream>>>(n, input, output, a, b);
 
@@ -67,7 +66,6 @@ int computeCosLU(cudaStream_t stream, int n, const half* input, half* output, co
     PLUGIN_CHECK(cudaPeekAtLastError());
     return 0;
 }
-} // namespace bert
 } // namespace plugin
 } // namespace nvinfer1
 #endif // CUDA_VERSION >= 10010
