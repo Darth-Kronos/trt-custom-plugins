@@ -9,10 +9,14 @@
 #include <string>
 #include <vector>
 
+using namespace nvinfer1::plugin::bert;
+
 namespace nvinfer1
 {
 namespace plugin
 {
+// namespace bert
+// {
 
 class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 {
@@ -102,6 +106,7 @@ private:
     static std::vector<nvinfer1::PluginField> mPluginAttributes;
     std::string mNamespace;
 };
+// } // namespace bert
 } // namespace plugin
 } // namespace nvinfer1
 

@@ -5,13 +5,13 @@
 #include <vector>
 
 #include "NvInfer.h"
-#include "cosLUPlugin.h"
 #include "common/bertCommon.h"
 #include "common/serialize.hpp"
-
+#include "cosLUPlugin.h"
 
 using namespace nvinfer1;
 using namespace nvinfer1::plugin;
+// using namespace nvinfer1::plugin::bert;
 
 namespace {
     char const* const kCOSLU_PLUGIN_VERSION{"1"};
@@ -344,7 +344,7 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
             return nullptr;
         }
         // W.values = _values;
-        return new CosLUPlugin(name, typeId, W_a, W_b);
+        return new CosLUPlugin(name, static_cast<DataType>(typeId), W_a, W_b);
     }
     catch (std::exception const& e)
     {
