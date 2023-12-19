@@ -37,3 +37,4 @@
 plugin/cosLUPlugin/__pycache__
 plugin/cosLUPlugin/tsPlugin/build/*
 *.onnx
+*.ts

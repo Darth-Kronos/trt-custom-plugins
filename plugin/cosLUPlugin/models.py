@@ -3,25 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
 import numpy as np
-
 # custom_layer = torch.utils.cpp_extension.load('path/to/built/extension', 'custom_layer')
 # torch.ops.load_library("new/build/libcosLU.so")
 
 # Custom activation function
-class CosLU(nn.Module):
+class CustomCosLUPlugin(nn.Module):
     def __init__(self):
-        super(CosLU, self).__init__()
-        self.a = nn.Parameter(torch.empty(1))
-        self.b = nn.Parameter(torch.empty(1))
+        super(CustomCosLUPlugin, self).__init__()
+        self.attra = nn.Parameter(torch.empty(1))
+        self.attrb = nn.Parameter(torch.empty(1))
 
-        nn.init.constant_(self.a, 1.0)
-        nn.init.constant_(self.b, 1.0)
+        nn.init.constant_(self.attra, 1.0)
+        nn.init.constant_(self.attrb, 2.0)
 
     def forward(self, x):
-        if torch.jit.is_tracing():
-            return torch.ops.my_ops.cosLU(x, self.a, self.b)
+        # if torch.jit.is_tracing():
+        return torch.ops.my_ops.CustomCosLUPlugin(x, self.attra, self.attrb)
         
-        return torch.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
+        # return torch.sigmoid(x) * (x + self.a * torch.cos(self.b * x))
 
 # ResNet50 with CosLU activation function
 class CustomResNet(nn.Module):

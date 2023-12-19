@@ -1,30 +1,41 @@
 import torch
-import models
-import onnxruntime as ort
-import numpy as np
+# import models
+# import onnxruntime as ort
+# import numpy as np
+from models import CustomCosLUPlugin
+torch.ops.load_library("tsPlugin/build/libCustomCosLUPlugin.so")
+from torch.onnx import symbolic_helper
+from torch.onnx import register_custom_op_symbolic
 
-torch.ops.load_library("tsPlugin/build/libcosLU.so")
-
-model = models.CustomResNet(models.CosLU)
+# model = models.CustomResNet(models.CosLU)
 # model.to('cuda')
-dummy_input = torch.randn(1, 3, 224, 224)
+dummy_x = torch.randn(1,10)
+dummy_a = torch.tensor(1)
+dummy_b = torch.tensor(1)
+model = CustomCosLUPlugin()
+# dummy_input = torch.randn(1, 3, 224, 224)
+# print(model)
+module = torch.jit.trace(model, dummy_x, dummy_a, dummy_b)
+print(module.code)
+print(module.graph)
 
-module = torch.jit.trace(model, dummy_input)
+mod_exp = torch.jit.trace(torch.nn.Conv2d(3,4,kernel_size=5), torch.rand(1,3,10,10))
+print(mod_exp.code)
+print(mod_exp.graph)
+# torch.jit.save(module, 'CustomCosLUPlugin.ts')
 
-torch.jit.save(module, 'test.ts')
-
-
-def register_custom_op():
-    def my_cosLU(g, x, a, b):
-        return g.op("mydomain::cosLU", x, a, b)
-
-    from torch.onnx import register_custom_op_symbolic
-
-    register_custom_op_symbolic("my_ops::cosLU", my_cosLU, 9)
+# @symbolic_helper.parse_args("t", "f", "f")
+def my_cosLU(g, x, a, b):
+    output = g.op("mydomain::CustomCosLUPlugin", x, a, b)
+    return output
 
 
-register_custom_op()
-torch.onnx.export(model, dummy_input, 'gg.onnx', verbose=False,input_names=["input"],
+register_custom_op_symbolic("my_ops::CustomCosLUPlugin", my_cosLU, 9)
+
+torch.onnx.export(mod_exp, torch.rand(1,3,10,10), 'conv2dtest.onnx', verbose=True,input_names=["input"],
+                        output_names=["output"])
+
+torch.onnx.export(module, dummy_x, 'CustomCosLUPlugin_changed.onnx', verbose=True,input_names=["x"],
                         output_names=["output"])
 
 # image_ortvalue = ort.OrtValue.ortvalue_from_numpy(np.zeros((1,3,224,224)), 'cuda', 0)
