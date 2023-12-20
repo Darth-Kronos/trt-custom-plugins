@@ -1,5 +1,5 @@
 #include<cuda.h>
-#if CUDA_VERSION >= 10010
+// #if CUDA_VERSION >= 10010
 
 #ifndef TRT_COSLU_PLUGIN_H
 #define TRT_COSLU_PLUGIN_H
@@ -21,14 +21,11 @@ namespace plugin
 class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 {
 public:
-    CosLUPlugin(const std::string name, const nvinfer1::DataType type, nvinfer1::Weights const& a, nvinfer1::Weights const& b);
+    CosLUPlugin();
 
     //deserialize constructor
-    CosLUPlugin(const std::string name, void const* data, size_t length);
+    CosLUPlugin(void const* data, size_t length);
 
-    // It doesn't make sense to make CosLUPlugin without arguments, so we delete
-    // default constructor.
-    CosLUPlugin() = delete;
 
     // IPluginV2DynamicExt Methods
     nvinfer1::IPluginV2DynamicExt* clone() const noexcept override;
@@ -111,5 +108,5 @@ private:
 } // namespace nvinfer1
 
 #endif // TRT_COSLU_PLUGIN_H
-#endif //cuda
+// #endif //cuda
 

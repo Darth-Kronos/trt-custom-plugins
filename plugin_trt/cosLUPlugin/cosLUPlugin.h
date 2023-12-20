@@ -1,8 +1,9 @@
-// #if CUDA_VERSION >= 10010
+#include<cuda.h>
+#if CUDA_VERSION >= 10010
+
 #ifndef TRT_COSLU_PLUGIN_H
 #define TRT_COSLU_PLUGIN_H
 
-#include <cuda.h>
 #include "NvInferPlugin.h"
 #include "common/bertCommon.h"
 #include <string>
@@ -17,21 +18,14 @@ namespace plugin
 // namespace bert
 // {
 
-int32_t computeCosLU(cudaStream_t stream, int32_t n, const float* input, float* output, const float* a, const float* b);
-
-int32_t computeCosLU(cudaStream_t stream, int32_t n, const half* input, half* output, const half* a, const half* b);
-
 class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 {
 public:
-    CosLUPlugin(const std::string name, const nvinfer1::DataType type, nvinfer1::Weights const& a, nvinfer1::Weights const& b);
+    CosLUPlugin();
 
     //deserialize constructor
-    CosLUPlugin(const std::string name, void const* data, size_t length);
+    CosLUPlugin(void const* data, size_t length);
 
-    // It doesn't make sense to make CosLUPlugin without arguments, so we delete
-    // default constructor.
-    CosLUPlugin() = delete;
 
     // IPluginV2DynamicExt Methods
     nvinfer1::IPluginV2DynamicExt* clone() const noexcept override;
@@ -70,11 +64,6 @@ private:
     const std::string mLayerName;
     std::string mNamespace;
 
-    nvinfer1::DataType mType;
-
-    bert::cuda_shared_ptr<void> mAdev;
-    bert::cuda_shared_ptr<void> mBdev;
-
     size_t mLd; // leading dim
 
     using IPluginV2::getOutputDimensions;
@@ -87,7 +76,7 @@ private:
 class CosLUPluginCreator : public nvinfer1::IPluginCreator
 {
 public:
-    CosLUPluginCreator();
+    CosLUPluginCreator(); 
 
     char const* getPluginName() const noexcept override;
 
@@ -114,5 +103,5 @@ private:
 } // namespace nvinfer1
 
 #endif // TRT_COSLU_PLUGIN_H
-// #endif //cuda
+#endif //cuda
 

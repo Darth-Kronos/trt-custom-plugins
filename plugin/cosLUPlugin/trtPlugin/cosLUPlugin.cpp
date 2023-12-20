@@ -24,36 +24,10 @@ std::vector<PluginField> CosLUPluginCreator::mPluginAttributes;
 
 REGISTER_TENSORRT_PLUGIN(CosLUPluginCreator);
 /////////////// CosLUPluginCreator
-CosLUPlugin::CosLUPlugin(const std::string name, const DataType type, Weights const& a, Weights const& b) : mLayerName(name), mType(type), mLd(a.count) {
-    
-    void* cudaMemA{nullptr};
-    void* cudaMemB{nullptr};
-    PLUGIN_CUASSERT(cudaMalloc(&cudaMemA, getWeightsSize(a, mType)));
-    PLUGIN_CUASSERT(cudaMemcpy(cudaMemA, a.values, getWeightsSize(a, mType), cudaMemcpyHostToDevice));
+CosLUPlugin::CosLUPlugin {}
 
-    PLUGIN_CUASSERT(cudaMalloc(&cudaMemB, getWeightsSize(b, mType)));
-    PLUGIN_CUASSERT(cudaMemcpy(cudaMemB, b.values, getWeightsSize(b, mType), cudaMemcpyHostToDevice));
-
-    make_cuda_shared(mAdev, cudaMemA);
-    make_cuda_shared(mBdev, cudaMemB);
-}
-
-CosLUPlugin::CosLUPlugin(const std::string name, void const* data, size_t length) : mLayerName(name) {
+CosLUPlugin::CosLUPlugin(void const* data, size_t length){
     gLogVerbose << "CosLUPluginDynamic deserialize\n";
-
-    // Deserialize in the same order as serialization
-
-    // memcopy(_dst, _src, size)
-    // deserialize: buffer -> fields
-    
-    // deserialize(buffer, buffer_size, value)
-    deserialize_value(&data, &length, &mType);
-    deserialize_value(&data, &length, &mLd);
-    
-    PLUGIN_VALIDATE(mLd > 0);
-    char const* d = static_cast<char const*>(data);
-    make_cuda_shared(mAdev, deserToDev<char>(d, mLd * getElementSize(mType)));
-    make_cuda_shared(mBdev, deserToDev<char>(d, mLd * getElementSize(mType)));
 
 }
 
@@ -91,30 +65,11 @@ nvinfer1::DimsExprs CosLUPlugin::getOutputDimensions(int32_t outputIndex, nvinfe
     return DimsExprs{};
 }
 
-void CosLUPlugin::serialize(void* buffer) const noexcept {
-    try {
-        // memcopy(_dst, _src, size)
-        // serialize: fields -> buffer
-        
-        // serialize(buffer, value)
-        serialize_value(&buffer, mType);
-        serialize_value(&buffer, mLd);
-
-        char* d = static_cast<char*>(buffer);
-        serFromDev(d, static_cast<char*>(mAdev.get()), mLd * getElementSize(mType));
-        serFromDev(d, static_cast<char*>(mBdev.get()), mLd * getElementSize(mType));
-        
-    }
-    catch (std::exception const& e) {
-        caughtError(e);
-    }
-}
+void CosLUPlugin::serialize(void* buffer) const noexcept {}
 
 void CosLUPlugin::destroy() noexcept {
     gLogVerbose << "CosLUPlugin destroy\n";
     // This gets called when the network containing plugin is destroyed
-    mAdev.reset();
-    mBdev.reset();
     delete this;
 }
 
@@ -282,13 +237,13 @@ size_t CosLUPlugin::getSerializationSize() const noexcept
 
 CosLUPluginCreator::CosLUPluginCreator() {
     // name, data, datatype, length
-    mPluginAttributes.emplace_back(PluginField("type_id", nullptr, PluginFieldType::kINT32, 1));
-    mPluginAttributes.emplace_back(PluginField("a", nullptr, PluginFieldType::kFLOAT32, 1));
-    mPluginAttributes.emplace_back(PluginField("b", nullptr, PluginFieldType::kFLOAT32, 1));
+    // mPluginAttributes.emplace_back(PluginField("type_id", nullptr, PluginFieldType::kINT32, 1));
+    // mPluginAttributes.emplace_back(PluginField("a", nullptr, PluginFieldType::kFLOAT32, 1));
+    // mPluginAttributes.emplace_back(PluginField("b", nullptr, PluginFieldType::kFLOAT32, 1));
 
     // Fill PluginFieldCollection with PluginField arguments metadata
-    mFC.nbFields = mPluginAttributes.size(); // 3
-    mFC.fields = mPluginAttributes.data(); // pointer to the above fields (type_id,a,b)
+    // mFC.nbFields = mPluginAttributes.size(); // 
+    // mFC.fields = mPluginAttributes.data(); // pointer to the above fields (type_id,a,b)
 }
 ///////////////
 
@@ -310,41 +265,29 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
         PLUGIN_VALIDATE(fc != nullptr);
 
         // Weights W{DataType::kFLOAT, vector<DataType::kFLOAT>, 0};
-        Weights W_a{DataType::kFLOAT, nullptr, 0};
-        Weights W_b{DataType::kFLOAT, nullptr, 0};
+        // Weights W_a{DataType::kFLOAT, nullptr, 0};
+        // Weights W_b{DataType::kFLOAT, nullptr, 0};
         // Weights b{DataType::kFLOAT, nullptr, 0};
         // std::vector<DataType::kFLOAT> _values;
-        int32_t typeId = -1;
-        plugin::validateRequiredAttributesExist({"type_id"}, fc);
-        plugin::validateRequiredAttributesExist({"a"}, fc);
-        plugin::validateRequiredAttributesExist({"b"}, fc);
+        // int32_t typeId = -1;
+        // plugin::validateRequiredAttributesExist({"type_id"}, fc);
+        // plugin::validateRequiredAttributesExist({"a"}, fc);
+        // plugin::validateRequiredAttributesExist({"b"}, fc);
 
-        for (int32_t i = 0; i < fc->nbFields; i++) {
-            PLUGIN_VALIDATE(fc->fields[i].name != nullptr);
-            std::string fieldName(fc->fields[i].name);
-            if (fieldName.compare("type_id") == 0) {
-                typeId = *static_cast<int32_t const*>(fc->fields[i].data);
-            }
-            if (fieldName.compare("a") == 0) {
-                // values.push_back(fc->fields[i].data);
-                W_a.values = fc->fields[i].data;
-                W_a.count += fc->fields[i].length;
-                W_a.type = fieldTypeToDataType(fc->fields[i].type);
-            }
-            if (fieldName.compare("b") == 0) {
-                // values.push_back(fc->fields[i].data);
-                W_b.values = fc->fields[i].data;
-                W_b.count += fc->fields[i].length;
-                W_b.type = fieldTypeToDataType(fc->fields[i].type);
-            }
-        }
-        if (typeId < 0 || typeId > 3)
-        {
-            gLogError << "CosLUPluginCreator: invalid typeId " << typeId << std::endl;
-            return nullptr;
-        }
-        // W.values = _values;
-        return new CosLUPlugin(name, static_cast<DataType>(typeId), W_a, W_b);
+        // for (int32_t i = 0; i < fc->nbFields; i++) {
+        //     PLUGIN_VALIDATE(fc->fields[i].name != nullptr);
+        //     std::string fieldName(fc->fields[i].name);
+        //     if (fieldName.compare("type_id") == 0) {
+        //         typeId = *static_cast<int32_t const*>(fc->fields[i].data);
+        //     }
+        // }
+        // if (typeId < 0 || typeId > 3)
+        // {
+        //     gLogError << "CosLUPluginCreator: invalid typeId " << typeId << std::endl;
+        //     return nullptr;
+        // }
+        // // W.values = _values;
+        return new CosLUPlugin();
     }
     catch (std::exception const& e)
     {
