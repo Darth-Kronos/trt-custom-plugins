@@ -1,21 +1,32 @@
-add_custom_target(plugin)
-set(SHARED_TARGET ${TARGET_NAME})
-
-set(ENABLED_SMS "-DENABLE_SM72 -DENABLE_SM75 -DENABLE_SM80 -DENABLE_SM86 -DENABLE_SM87 -DENABLE_SM89 -DENABLE_SM90")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ENABLED_SMS}")
+#
+# SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# file(GLOB SRCS *.cpp)
+# set(PLUGIN_SOURCES ${PLUGIN_SOURCES} ${SRCS})
+# set(PLUGIN_SOURCES ${PLUGIN_SOURCES} PARENT_SCOPE)
+# file(GLOB CU_SRCS *.cu)
+# set(BERT_CU_SOURCES ${BERT_CU_SOURCES} ${CU_SRCS})
+# set(BERT_CU_SOURCES ${BERT_CU_SOURCES} PARENT_SCOPE)
 
 
 file(GLOB SRCS *.cpp)
 set(PLUGIN_SOURCES ${PLUGIN_SOURCES} ${SRCS})
 set(PLUGIN_SOURCES ${PLUGIN_SOURCES} PARENT_SCOPE)
-
 file(GLOB CU_SRCS *.cu)
 set(PLUGIN_CU_SOURCES ${PLUGIN_CU_SOURCES} ${CU_SRCS})
 set(PLUGIN_CU_SOURCES ${PLUGIN_CU_SOURCES} PARENT_SCOPE)
-
-set_source_files_properties(${PLUGIN_CU_SOURCES} PROPERTIES COMPILE_FLAGS "${GENCODES} ${ENABLED_SMS}")
-list(APPEND PLUGIN_SOURCES "${PLUGIN_CU_SOURCES}")
-
-add_library(${SHARED_TARGET} SHARED
-    ${PLUGIN_SOURCES}
-)
+# set(BERT_CU_SOURCES ${BERT_CU_SOURCES} ${CU_SRCS})
+# set(BERT_CU_SOURCES ${BERT_CU_SOURCES} PARENT_SCOPE)

@@ -1,5 +1,5 @@
 #include <cuda.h>
-// #if CUDA_VERSION >= 10010
+#if CUDA_VERSION >= 10010
 
 #include <cstring>
 #include <vector>
@@ -24,12 +24,7 @@ std::vector<PluginField> CosLUPluginCreator::mPluginAttributes;
 
 REGISTER_TENSORRT_PLUGIN(CosLUPluginCreator);
 /////////////// CosLUPluginCreator
-CosLUPlugin::CosLUPlugin {}
-
-CosLUPlugin::CosLUPlugin(void const* data, size_t length){
-    gLogVerbose << "CosLUPluginDynamic deserialize\n";
-
-}
+CosLUPlugin::CosLUPlugin() {}
 
 // IPluginV2DynamicExt Methods
 nvinfer1::IPluginV2DynamicExt* CosLUPlugin::clone() const noexcept
@@ -54,7 +49,7 @@ nvinfer1::DimsExprs CosLUPlugin::getOutputDimensions(int32_t outputIndex, nvinfe
     try
     {
         PLUGIN_VALIDATE(inputs != nullptr);
-        PLUGIN_VALIDATE(nbInputs == 1);
+        PLUGIN_VALIDATE(nbInputs == 3);
         PLUGIN_VALIDATE(outputIndex == 0);
         return inputs[0];
     }
@@ -87,18 +82,7 @@ char const* CosLUPlugin::getPluginNamespace() const noexcept {
     return mNamespace.c_str();
 }
 
-template <typename TDataType>
-int32_t CosLUPlugin::enqueueTyped(
-    void const* input_, void* output_, int32_t const inputVolume, cudaStream_t stream) noexcept
-{
-    TDataType const* input = static_cast<TDataType const*>(input_);
-    TDataType* output = static_cast<TDataType*>(output_);
-    // int32_t const cols = inputVolume / mLd;
-    // int32_t const rows = mLd;
-    TDataType const* a = static_cast<TDataType*>(mADev.get());
-    TDataType const* b = static_cast<TDataType*>(mBDev.get());
-    return computeCosLU(stream, inputVolume, input, output, a, b);
-}
+
 
 int32_t CosLUPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
     nvinfer1::PluginTensorDesc const* outputDesc, void const* const* inputs, void* const* outputs, void* workspace,
@@ -118,44 +102,20 @@ int32_t CosLUPlugin::enqueue(nvinfer1::PluginTensorDesc const* inputDesc,
 
     int32_t const inputVolume = volume(inputDesc[0].dims);
 
-    // Our plugin outputs only one tensor.
-    // Launch CUDA kernel wrapper and save its return value.
-    switch (mType)
-    {
-    case DataType::kFLOAT: return enqueueTyped<float>(inputs[0], outputs[0], inputVolume, stream);
-    case DataType::kHALF: return enqueueTyped<half>(inputs[0], outputs[0], inputVolume, stream);
-    default: return STATUS_FAILURE;
-    }
+    float const* x = static_cast<float const*>(inputs[0]);
+    float const* a = static_cast<float const*>(inputs[1]);
+    float const* b = static_cast<float const*>(inputs[2]);
+    
+    float* output = static_cast<float*>(outputs[0]);
+    // std::cout << "Input" << x << " a" << a << " b" << b << endl;
+    return computeCosLU(stream, inputVolume, x, output, a, b);
+   
 }
 
 bool CosLUPlugin::supportsFormatCombination(
     int32_t pos, nvinfer1::PluginTensorDesc const* inOut, int32_t nbInputs, int32_t nbOutputs) noexcept
 {
-    try
-    {
-        PLUGIN_VALIDATE(inOut != nullptr);
-        PLUGIN_VALIDATE(nbInputs == 1);
-        PLUGIN_VALIDATE(nbOutputs == 1);
-        PLUGIN_VALIDATE(pos >= 0);
-        PLUGIN_VALIDATE(pos < nbInputs + nbOutputs);
-    }
-    catch (std::exception const& e)
-    {
-        caughtError(e);
-        return false;
-    }
-
-    PluginTensorDesc const& input = inOut[0];
-    if (pos == 0)
-    {
-        return (input.type == mType) && (input.format == TensorFormat::kLINEAR);
-    }
-    if (pos == 1)
-    {
-        PluginTensorDesc const& output = inOut[1];
-        return (input.type == output.type) && (output.format == TensorFormat::kLINEAR);
-    }
-    return false;
+    return true;
 }
 
 void CosLUPlugin::configurePlugin(nvinfer1::DynamicPluginTensorDesc const* in, int32_t nbInputs,
@@ -166,8 +126,7 @@ void CosLUPlugin::configurePlugin(nvinfer1::DynamicPluginTensorDesc const* in, i
     try
     {
         PLUGIN_VALIDATE(in != nullptr);
-        PLUGIN_VALIDATE(nbInputs == 1);
-        PLUGIN_VALIDATE(mType == in[0].desc.type);
+        PLUGIN_VALIDATE(nbInputs == 3);
     }
     catch (std::exception const& e)
     {
@@ -189,7 +148,8 @@ nvinfer1::DataType CosLUPlugin::getOutputDataType(
     {
         PLUGIN_VALIDATE(index == 0);
         PLUGIN_VALIDATE(inputTypes != nullptr);
-        PLUGIN_VALIDATE(inputTypes[0] == DataType::kFLOAT || inputTypes[0] == DataType::kHALF);
+         
+        PLUGIN_VALIDATE(inputTypes[0] == DataType::kFLOAT);
         return inputTypes[0];
     }
     catch (std::exception const& e)
@@ -231,7 +191,7 @@ size_t CosLUPlugin::getSerializationSize() const noexcept
 {
     // const size_t wordSize = getElementSize(mType);
     // const size_t biasSize = mHasBias ? mLd * wordSize : 0;
-    return sizeof(mType) + 2 * sizeof(mLd);
+    return 0;
 }
 ///////////////
 
@@ -262,31 +222,6 @@ PluginFieldCollection const* CosLUPluginCreator::getFieldNames() noexcept {
 IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollection const* fc) noexcept {
     try {
         gLogVerbose << "CosLUPluginCreator createPlugin\n";
-        PLUGIN_VALIDATE(fc != nullptr);
-
-        // Weights W{DataType::kFLOAT, vector<DataType::kFLOAT>, 0};
-        // Weights W_a{DataType::kFLOAT, nullptr, 0};
-        // Weights W_b{DataType::kFLOAT, nullptr, 0};
-        // Weights b{DataType::kFLOAT, nullptr, 0};
-        // std::vector<DataType::kFLOAT> _values;
-        // int32_t typeId = -1;
-        // plugin::validateRequiredAttributesExist({"type_id"}, fc);
-        // plugin::validateRequiredAttributesExist({"a"}, fc);
-        // plugin::validateRequiredAttributesExist({"b"}, fc);
-
-        // for (int32_t i = 0; i < fc->nbFields; i++) {
-        //     PLUGIN_VALIDATE(fc->fields[i].name != nullptr);
-        //     std::string fieldName(fc->fields[i].name);
-        //     if (fieldName.compare("type_id") == 0) {
-        //         typeId = *static_cast<int32_t const*>(fc->fields[i].data);
-        //     }
-        // }
-        // if (typeId < 0 || typeId > 3)
-        // {
-        //     gLogError << "CosLUPluginCreator: invalid typeId " << typeId << std::endl;
-        //     return nullptr;
-        // }
-        // // W.values = _values;
         return new CosLUPlugin();
     }
     catch (std::exception const& e)
@@ -299,11 +234,9 @@ IPluginV2* CosLUPluginCreator::createPlugin(char const* name, PluginFieldCollect
 IPluginV2* CosLUPluginCreator::deserializePlugin(
     char const* name, void const* serialData, size_t serialLength) noexcept
 {
-    // This object will be deleted when the network is destroyed, which will
-    // call CosLUPlugin::destroy()
     try
     {
-        return new CosLUPlugin(name, serialData, serialLength);
+        return new CosLUPlugin();
     }
     catch (std::exception const& e)
     {
@@ -330,4 +263,4 @@ char const* CosLUPluginCreator::getPluginNamespace() const noexcept
     return mNamespace.c_str();
 }
 
-// #endif // CUDA_VERSION >= 10010
+#endif // CUDA_VERSION >= 10010

@@ -1,5 +1,5 @@
 #include<cuda.h>
-// #if CUDA_VERSION >= 10010
+#if CUDA_VERSION >= 10010
 
 #ifndef TRT_COSLU_PLUGIN_H
 #define TRT_COSLU_PLUGIN_H
@@ -17,6 +17,7 @@ namespace plugin
 {
 // namespace bert
 // {
+int32_t computeCosLU(cudaStream_t stream, int n,float const* input, float* output, float const* a, float const* b);
 
 class CosLUPlugin : public nvinfer1::IPluginV2DynamicExt
 {
@@ -64,11 +65,6 @@ private:
     const std::string mLayerName;
     std::string mNamespace;
 
-    nvinfer1::DataType mType;
-
-    bert::cuda_shared_ptr<void> mAdev;
-    bert::cuda_shared_ptr<void> mBdev;
-
     size_t mLd; // leading dim
 
     using IPluginV2::getOutputDimensions;
@@ -81,7 +77,7 @@ private:
 class CosLUPluginCreator : public nvinfer1::IPluginCreator
 {
 public:
-    CosLUPluginCreator();
+    CosLUPluginCreator(); 
 
     char const* getPluginName() const noexcept override;
 
@@ -108,5 +104,5 @@ private:
 } // namespace nvinfer1
 
 #endif // TRT_COSLU_PLUGIN_H
-// #endif //cuda
+#endif //cuda
 
