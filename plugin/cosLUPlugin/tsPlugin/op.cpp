@@ -9,5 +9,5 @@ torch::Tensor cosLU(torch::Tensor x, torch::Tensor attra, torch::Tensor attrb)
 }
 
 TORCH_LIBRARY(my_ops, m) {
-  m.def("CustomCosLUPlugin", cosLU);
+  m.def("cosLUPlugin", cosLU);
 }

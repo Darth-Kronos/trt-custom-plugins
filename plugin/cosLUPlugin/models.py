@@ -4,9 +4,9 @@ import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
 
 # Custom activation function
-class CustomCosLUPlugin(nn.Module):
+class cosLUPlugin(nn.Module):
     def __init__(self):
-        super(CustomCosLUPlugin, self).__init__()
+        super(cosLUPlugin, self).__init__()
         self.attra = nn.Parameter(torch.empty(1))
         self.attrb = nn.Parameter(torch.empty(1))
 
@@ -15,7 +15,7 @@ class CustomCosLUPlugin(nn.Module):
 
     def forward(self, x):
         if torch.jit.is_tracing():
-            return torch.ops.my_ops.CustomCosLUPlugin(x, self.attra, self.attrb)
+            return torch.ops.my_ops.cosLUPlugin(x, self.attra, self.attrb)
         
         return torch.sigmoid(x) * (x + self.attra * torch.cos(self.attrb * x))
 
