@@ -56,6 +56,14 @@ To use the custom operators in your TensorRT project, ensure that the prerequisi
 	``` 
     For more information follow [TensorRT's README](https://github.com/NVIDIA/TensorRT/)
 4. Exporting and converting
+* Building Torchscript operator
+    ```bash
+    cd plugin/<plugin>/tsPlugin
+    mkdir -p build && cd build
+    cmake -DCMAKE_PREFIX_PATH="$(python3 -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" ..
+    make -j
+    cd ../../..
+    ```
 * Exporting an example model
     ```bash
     cd plugin/<plugin>
